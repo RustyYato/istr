@@ -9,8 +9,8 @@ edition = "2021"
 version = '0.13'
 features = ['raw']
 
-[dependencies.rustc-hash]
-version = '1'
+[dependencies.ahash]
+version = '0.8'
 
 [dependencies.nohash-hasher]
 version = '0.2'
