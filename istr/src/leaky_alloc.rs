@@ -93,6 +93,10 @@ impl LeakyAlloc {
             })
         }
 
+        if !FIRST {
+            ALLOC.with(|alloc| alloc.set(LeakyAllocHandle(ptr)));
+        }
+
         ptr
     }
 }
@@ -132,7 +136,6 @@ pub fn alloc(size: usize) -> *mut u8 {
         // create a new leaky alloc, since it is guarnateed to be larger than the string
 
         ptr = LeakyAlloc::new();
-        ALLOC.with(|alloc| alloc.set(LeakyAllocHandle(ptr)));
 
         start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
         header = unsafe { &mut *ptr };
