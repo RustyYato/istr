@@ -120,7 +120,7 @@ fn large_alloc(size: usize) -> *mut u8 {
     ptr
 }
 
-pub fn alloc(size: usize) -> *mut u8 {
+fn alloc(size: usize) -> *mut u8 {
     let mut ptr = get_alloc();
 
     let mut start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
