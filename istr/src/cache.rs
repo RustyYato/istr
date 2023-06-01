@@ -53,7 +53,7 @@ pub fn local_cache_size() -> usize {
     with_local_table(|table| table.len())
 }
 
-fn tables() -> impl Iterator<Item = MutexGuard<'static, raw::RawTable<IBytes>>> {
+pub fn tables() -> impl Iterator<Item = MutexGuard<'static, raw::RawTable<IBytes>>> {
     TABLES
         .iter()
         .map(|table| table.table.lock().unwrap_or_else(PoisonError::into_inner))

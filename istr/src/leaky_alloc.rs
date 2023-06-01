@@ -182,6 +182,7 @@ pub(crate) fn new(s: &str) -> IStr {
     with_hash(s, crate::hasher::hash(s))
 }
 
+#[cfg(test)]
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
     let bytes = with_hash_bytes(s.as_bytes(), hash);
     unsafe { IStr::from_utf8_unchecked(bytes) }
@@ -209,6 +210,7 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
 }
 
 impl IBytes {
+    #[inline]
     fn header_ptr(self) -> *mut InternedStringHeader {
         let offset = unsafe {
             let data = MaybeUninit::<InternedStringHeader>::uninit();
@@ -219,63 +221,77 @@ impl IBytes {
         unsafe { self.0.as_ptr().sub(offset).cast() }
     }
 
+    #[inline]
     pub fn to_bytes(self) -> &'static [u8] {
         unsafe { core::slice::from_raw_parts(self.0.as_ptr(), self.len()) }
     }
 
+    #[inline]
     pub fn len(self) -> usize {
         let ptr = self.header_ptr();
         unsafe { (*ptr).len as usize }
     }
 
+    #[inline]
     pub fn saved_hash(self) -> u64 {
         let ptr = self.header_ptr();
         unsafe { (*ptr).hash }
     }
 
+    #[inline]
     pub fn as_cstr_ptr(self) -> *const std::ffi::c_char {
         self.0.as_ptr().cast()
     }
 
+    #[inline]
     pub fn as_cstr(self) -> &'static CStr {
         unsafe { CStr::from_ptr(self.as_cstr_ptr()) }
     }
 }
 
 impl IStr {
+    #[inline]
     pub fn from_utf8(bytes: IBytes) -> Result<Self, Utf8Error> {
         core::str::from_utf8(bytes.to_bytes())?;
         Ok(unsafe { Self::from_utf8_unchecked(bytes) })
     }
 
+    #[inline]
     pub unsafe fn from_utf8_unchecked(bytes: IBytes) -> Self {
         Self(bytes)
     }
 
+    #[inline]
     pub fn to_str(self) -> &'static str {
         unsafe { core::str::from_utf8_unchecked(self.to_bytes()) }
     }
 
+    #[inline]
     pub fn to_bytes(self) -> &'static [u8] {
         self.0.to_bytes()
     }
 
+    #[inline]
     pub fn to_ibytes(self) -> IBytes {
         self.0
     }
 
+    #[inline]
     pub fn len(self) -> usize {
         self.0.len()
     }
 
+    #[inline]
     pub fn saved_hash(self) -> u64 {
         self.0.saved_hash()
     }
 
+    #[inline]
     pub fn as_cstr_ptr(self) -> *const std::ffi::c_char {
         self.0.as_cstr_ptr()
     }
 
+    #[inline]
     pub fn as_cstr(self) -> &'static CStr {
         self.0.as_cstr()
     }
