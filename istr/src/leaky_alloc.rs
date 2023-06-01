@@ -7,6 +7,9 @@ use std::{
 // a megabyte
 const INITIAL_SIZE: usize = 1024 * 1024;
 
+const ALIGN: usize = std::mem::align_of::<InternedStringHeader>();
+const ALIGN_MASK: usize = !ALIGN.wrapping_sub(1);
+
 #[cfg(miri)]
 use std::sync::{Mutex, PoisonError};
 
@@ -96,10 +99,24 @@ impl LeakyAlloc {
 
 #[cold]
 #[inline(never)]
-pub fn alloc(size: usize) -> *mut u8 {
-    const ALIGN: usize = std::mem::align_of::<InternedStringHeader>();
-    const ALIGN_MASK: usize = !ALIGN.wrapping_sub(1);
+fn large_alloc(size: usize) -> *mut u8 {
+    // super large string, just give it a dedicated allocation
 
+    let layout = Layout::from_size_align(size, ALIGN).unwrap();
+
+    let ptr = unsafe { std::alloc::alloc(layout) };
+
+    if ptr.is_null() {
+        std::alloc::handle_alloc_error(layout)
+    }
+
+    #[cfg(miri)]
+    register_leaked(ptr.cast());
+
+    ptr
+}
+
+pub fn alloc(size: usize) -> *mut u8 {
     let mut ptr = get_alloc();
 
     let mut start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
@@ -120,20 +137,7 @@ pub fn alloc(size: usize) -> *mut u8 {
         start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
         header = unsafe { &mut *ptr };
     } else {
-        // super large string, just give it a dedicated allocation
-
-        let layout = Layout::from_size_align(size, ALIGN).unwrap();
-
-        let ptr = unsafe { std::alloc::alloc(layout) };
-
-        if ptr.is_null() {
-            std::alloc::handle_alloc_error(layout)
-        }
-
-        #[cfg(miri)]
-        register_leaked(ptr.cast());
-
-        return ptr;
+        return large_alloc(size);
     }
 
     #[allow(unused_variables)]
