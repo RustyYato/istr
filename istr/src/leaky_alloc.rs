@@ -115,7 +115,7 @@ pub fn alloc(size: usize) -> *mut u8 {
         // create a new leaky alloc, since it is guarnateed to be larger than the string
 
         ptr = LeakyAlloc::new();
-        ALLOC.set(LeakyAllocHandle(ptr));
+        ALLOC.with(|alloc| alloc.set(LeakyAllocHandle(ptr)));
 
         start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
         header = unsafe { &mut *ptr };
@@ -140,8 +140,9 @@ pub fn alloc(size: usize) -> *mut u8 {
     let remaining = ();
 
     let current = unsafe { header.ptr.sub(size) };
-    let addr = current.addr() & ALIGN_MASK;
-    let current = current.with_addr(addr);
+    let current_addr = unsafe { core::mem::transmute::<_, usize>(current) };
+    let addr = current_addr & ALIGN_MASK;
+    let current = unsafe { current.sub(current_addr - addr) };
     header.ptr = current;
 
     debug_assert!(current as *const u8 >= start);

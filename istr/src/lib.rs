@@ -1,5 +1,3 @@
-#![feature(local_key_cell_methods, strict_provenance)]
-
 use std::cell::RefCell;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
