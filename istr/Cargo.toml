@@ -11,3 +11,6 @@ features = ['raw']
 
 [dependencies.rustc-hash]
 version = '1'
+
+[dependencies.nohash-hasher]
+version = '0.2'

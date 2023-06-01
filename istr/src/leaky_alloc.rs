@@ -1,4 +1,4 @@
-use std::{alloc::Layout, cell::Cell, ops::Deref, ptr::NonNull};
+use std::{alloc::Layout, cell::Cell, hash::Hash, ops::Deref, ptr::NonNull};
 
 // start of with a megabyte of storage, this should usualy be all that's needed
 // for the entire program, and usually there shouldn't be any strings larger than
@@ -205,6 +205,12 @@ impl IStr {
     pub fn saved_hash(self) -> u64 {
         let ptr = self.0.as_ptr();
         unsafe { (*ptr).hash }
+    }
+}
+
+impl Hash for IStr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.saved_hash().hash(state);
     }
 }
 

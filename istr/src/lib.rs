@@ -7,6 +7,12 @@ use hashbrown::raw;
 
 pub use leaky_alloc::IStr;
 
+impl nohash_hasher::IsEnabled for IStr {}
+pub type IStrHasher = nohash_hasher::NoHashHasher<IStr>;
+pub type IStrBuildHasher = nohash_hasher::BuildNoHashHasher<IStr>;
+pub type IStrMap<V> = std::collections::HashMap<IStr, V, IStrBuildHasher>;
+pub type IStrSet = std::collections::HashSet<IStr, IStrBuildHasher>;
+
 mod hasher;
 mod leaky_alloc;
 
