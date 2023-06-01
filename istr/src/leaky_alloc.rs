@@ -1,4 +1,6 @@
-use std::{alloc::Layout, cell::Cell, ffi::CStr, hash::Hash, ops::Deref, ptr::NonNull};
+use std::{
+    alloc::Layout, cell::Cell, ffi::CStr, hash::Hash, mem::MaybeUninit, ops::Deref, ptr::NonNull,
+};
 
 // start of with a megabyte of storage, this should usualy be all that's needed
 // for the entire program, and usually there shouldn't be any strings larger than
@@ -157,9 +159,9 @@ pub(crate) struct InternedStringHeader {
     data: [u8; 0],
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IStr(NonNull<InternedStringHeader>);
+pub struct IStr(NonNull<u8>);
 
 unsafe impl Send for IStr {}
 unsafe impl Sync for IStr {}
@@ -185,38 +187,44 @@ pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
         ptr.copy_from_nonoverlapping(s.as_ptr(), s.len());
 
         ptr.add(s.len()).write(0);
-    }
 
-    IStr(unsafe { NonNull::new_unchecked(ptr) })
+        IStr(NonNull::new_unchecked(ptr))
+    }
 }
 
 impl IStr {
+    fn header_ptr(self) -> *mut InternedStringHeader {
+        let offset = unsafe {
+            let data = MaybeUninit::<InternedStringHeader>::uninit();
+            let end = core::ptr::addr_of!((*data.as_ptr()).data).cast::<u8>();
+            end.offset_from(data.as_ptr().cast()) as usize
+        };
+
+        unsafe { self.0.as_ptr().sub(offset).cast() }
+    }
+
     pub fn to_str(self) -> &'static str {
-        let ptr = self.0.as_ptr();
-        let ptr = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
-        unsafe { core::str::from_utf8_unchecked(core::slice::from_raw_parts(ptr, self.len())) }
+        unsafe {
+            core::str::from_utf8_unchecked(core::slice::from_raw_parts(self.0.as_ptr(), self.len()))
+        }
     }
 
     pub fn len(self) -> usize {
-        let ptr = self.0.as_ptr();
+        let ptr = self.header_ptr();
         unsafe { (*ptr).len as usize }
     }
 
     pub fn saved_hash(self) -> u64 {
-        let ptr = self.0.as_ptr();
+        let ptr = self.header_ptr();
         unsafe { (*ptr).hash }
     }
 
     pub fn as_cstr_ptr(self) -> *const std::ffi::c_char {
-        let ptr = self.0.as_ptr();
-        let ptr = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
-        ptr.cast()
+        self.0.as_ptr().cast()
     }
 
     pub fn as_cstr(self) -> &'static CStr {
-        let ptr = self.0.as_ptr();
-        let ptr = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
-        unsafe { CStr::from_ptr(ptr.cast()) }
+        unsafe { CStr::from_ptr(self.as_cstr_ptr()) }
     }
 }
 
