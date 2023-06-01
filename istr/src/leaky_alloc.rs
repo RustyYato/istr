@@ -179,7 +179,7 @@ pub struct IStr(IBytes);
 
 #[cfg(test)]
 pub(crate) fn new(s: &str) -> IStr {
-    with_hash(s, crate::hasher::hash(s))
+    with_hash(s, crate::hasher::hash(s.as_bytes()))
 }
 
 #[cfg(test)]

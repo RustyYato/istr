@@ -1,7 +1,7 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
-pub fn hash<T: ?Sized + Hash>(value: &T) -> u64 {
+pub fn hash(value: &[u8]) -> u64 {
     let mut hasher = rustc_hash::FxHasher::default();
-    value.hash(&mut hasher);
+    hasher.write(value);
     hasher.finish()
 }
