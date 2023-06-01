@@ -72,29 +72,34 @@ pub fn size() -> usize {
     tables().map(|table| table.len()).sum()
 }
 
+fn insert(table: &mut raw::RawTable<IStr>, istr: IStr, hash: u64) {
+    table.insert(hash, istr, |istr| istr.saved_hash());
+}
+
+#[cold]
+#[inline(never)]
+fn create(table: &mut raw::RawTable<IStr>, s: &str, hash: u64) -> IStr {
+    let istr = leaky_alloc::with_hash(s, hash);
+    insert(table, istr, hash);
+    istr
+}
+
 fn new_imp(s: &str, hash: u64) -> IStr {
     let table = &mut *table_for(hash);
 
     let istr = if let Some(istr) = table.get(hash, |istr| istr.to_str() == s).copied() {
         istr
     } else {
-        let istr = leaky_alloc::with_hash(s, hash);
-
-        table.insert(hash, istr, |istr| istr.saved_hash());
-
-        istr
+        create(table, s, hash)
     };
 
     istr
 }
 
 #[cold]
-#[inline(never)]
 fn new_imp_slow(s: &str, hash: u64, local_table: &mut raw::RawTable<IStr>) -> IStr {
     let istr = new_imp(s, hash);
-
-    local_table.insert(hash, istr, |istr| istr.saved_hash());
-
+    insert(local_table, istr, hash);
     istr
 }
 
@@ -108,11 +113,8 @@ fn get_imp(s: &str, hash: u64) -> Option<IStr> {
 #[inline(never)]
 fn get_imp_slow(s: &str, hash: u64, local_table: &mut raw::RawTable<IStr>) -> Option<IStr> {
     let table = &mut *table_for(hash);
-
     let istr = table.get(hash, |istr| istr.to_str() == s).copied()?;
-
-    local_table.insert(hash, istr, |istr| istr.saved_hash());
-
+    insert(local_table, istr, hash);
     Some(istr)
 }
 
