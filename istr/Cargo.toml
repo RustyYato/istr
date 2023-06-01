@@ -14,3 +14,7 @@ version = '0.8'
 
 [dependencies.nohash-hasher]
 version = '0.2'
+
+[dependencies.ustr]
+version = '0.9'
+optional = true
