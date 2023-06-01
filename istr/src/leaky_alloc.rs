@@ -158,12 +158,10 @@ fn alloc(size: usize) -> *mut u8 {
     current
 }
 
-type USIZE = u32;
-
 #[repr(C)]
 pub(crate) struct InternedStringHeader {
     hash: u64,
-    len: USIZE,
+    len: usize,
     data: [u8; 0],
 }
 
@@ -180,13 +178,13 @@ pub(crate) fn new(s: &str) -> IStr {
 }
 
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
-    let size = core::mem::size_of::<u64>() + core::mem::size_of::<USIZE>() + s.len() + 1;
+    let size = core::mem::size_of::<u64>() + core::mem::size_of::<usize>() + s.len() + 1;
     let ptr = alloc(size).cast::<InternedStringHeader>();
 
     unsafe {
         ptr.write(InternedStringHeader {
             hash,
-            len: s.len() as USIZE,
+            len: s.len() as usize,
             data: [],
         });
 
