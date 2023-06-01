@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout, cell::Cell, ffi::CStr, hash::Hash, mem::MaybeUninit, ops::Deref, ptr::NonNull,
+    str::Utf8Error,
 };
 
 // start of with a megabyte of storage, this should usualy be all that's needed
@@ -167,10 +168,14 @@ pub(crate) struct InternedStringHeader {
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IStr(NonNull<u8>);
+pub struct IBytes(NonNull<u8>);
 
-unsafe impl Send for IStr {}
-unsafe impl Sync for IStr {}
+unsafe impl Send for IBytes {}
+unsafe impl Sync for IBytes {}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct IStr(IBytes);
 
 #[cfg(test)]
 pub(crate) fn new(s: &str) -> IStr {
@@ -178,6 +183,11 @@ pub(crate) fn new(s: &str) -> IStr {
 }
 
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
+    let bytes = with_hash_bytes(s.as_bytes(), hash);
+    unsafe { IStr::from_utf8_unchecked(bytes) }
+}
+
+pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
     let size = core::mem::size_of::<u64>() + core::mem::size_of::<usize>() + s.len() + 1;
     let ptr = alloc(size).cast::<InternedStringHeader>();
 
@@ -194,11 +204,11 @@ pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
 
         ptr.add(s.len()).write(0);
 
-        IStr(NonNull::new_unchecked(ptr))
+        IBytes(NonNull::new_unchecked(ptr))
     }
 }
 
-impl IStr {
+impl IBytes {
     fn header_ptr(self) -> *mut InternedStringHeader {
         let offset = unsafe {
             let data = MaybeUninit::<InternedStringHeader>::uninit();
@@ -209,10 +219,8 @@ impl IStr {
         unsafe { self.0.as_ptr().sub(offset).cast() }
     }
 
-    pub fn to_str(self) -> &'static str {
-        unsafe {
-            core::str::from_utf8_unchecked(core::slice::from_raw_parts(self.0.as_ptr(), self.len()))
-        }
+    pub fn to_bytes(self) -> &'static [u8] {
+        unsafe { core::slice::from_raw_parts(self.0.as_ptr(), self.len()) }
     }
 
     pub fn len(self) -> usize {
@@ -234,6 +242,52 @@ impl IStr {
     }
 }
 
+impl IStr {
+    pub fn from_utf8(bytes: IBytes) -> Result<Self, Utf8Error> {
+        core::str::from_utf8(bytes.to_bytes())?;
+        Ok(unsafe { Self::from_utf8_unchecked(bytes) })
+    }
+
+    pub unsafe fn from_utf8_unchecked(bytes: IBytes) -> Self {
+        Self(bytes)
+    }
+
+    pub fn to_str(self) -> &'static str {
+        unsafe { core::str::from_utf8_unchecked(self.to_bytes()) }
+    }
+
+    pub fn to_bytes(self) -> &'static [u8] {
+        self.0.to_bytes()
+    }
+
+    pub fn to_ibytes(self) -> IBytes {
+        self.0
+    }
+
+    pub fn len(self) -> usize {
+        self.0.len()
+    }
+
+    pub fn saved_hash(self) -> u64 {
+        self.0.saved_hash()
+    }
+
+    pub fn as_cstr_ptr(self) -> *const std::ffi::c_char {
+        self.0.as_cstr_ptr()
+    }
+
+    pub fn as_cstr(self) -> &'static CStr {
+        self.0.as_cstr()
+    }
+}
+
+impl From<IStr> for IBytes {
+    #[inline]
+    fn from(value: IStr) -> Self {
+        value.0
+    }
+}
+
 impl Hash for IStr {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.saved_hash().hash(state);
@@ -245,6 +299,18 @@ impl Deref for IStr {
 
     fn deref(&self) -> &Self::Target {
         self.to_str()
+    }
+}
+
+impl core::fmt::Debug for IBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_bytes().fmt(f)
+    }
+}
+
+impl core::fmt::Pointer for IBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
