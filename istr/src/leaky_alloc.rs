@@ -170,11 +170,18 @@ pub(crate) struct InternedStringHeader {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IBytes(NonNull<u8>);
 
+impl Hash for IBytes {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.saved_hash().hash(state)
+    }
+}
+
 unsafe impl Send for IBytes {}
 unsafe impl Sync for IBytes {}
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IStr(IBytes);
 
 #[cfg(test)]
