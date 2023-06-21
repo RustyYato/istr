@@ -9,6 +9,8 @@ use crate::{hasher, leaky_alloc, IBytes};
 struct CacheAlignedTable {
     table: Mutex<raw::RawTable<IBytes>>,
 }
+
+#[allow(clippy::declare_interior_mutable_const)]
 const CACHE_ALIGN_TABLE_INIT: CacheAlignedTable = CacheAlignedTable {
     table: Mutex::new(raw::RawTable::new()),
 };
@@ -42,6 +44,7 @@ fn with_local_table<O>(f: impl FnOnce(&mut raw::RawTable<IBytes>) -> O) -> O {
         panic!("Invalied reentrant call to with_local_table detected")
     }
 
+    #[allow(clippy::explicit_auto_deref)]
     LOCAL_TABLE.with(|table| f(&mut *table.try_borrow_mut().unwrap_or_else(|_| reentrant())))
 }
 
