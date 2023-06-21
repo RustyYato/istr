@@ -144,10 +144,8 @@ fn alloc(size: usize) -> *mut u8 {
         return large_alloc(size);
     }
 
-    #[allow(unused_variables)]
-    let remaining = ();
-
     let current = unsafe { header.ptr.sub(size) };
+    #[allow(clippy::transmutes_expressible_as_ptr_casts)]
     let current_addr = unsafe { core::mem::transmute::<_, usize>(current) };
     let addr = current_addr & ALIGN_MASK;
     let current = unsafe { current.sub(current_addr - addr) };
@@ -202,7 +200,7 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
     unsafe {
         ptr.write(InternedStringHeader {
             hash,
-            len: s.len() as usize,
+            len: s.len(),
             data: [],
         });
 
@@ -236,7 +234,12 @@ impl IBytes {
     #[inline]
     pub fn len(self) -> usize {
         let ptr = self.header_ptr();
-        unsafe { (*ptr).len as usize }
+        unsafe { (*ptr).len }
+    }
+
+    #[inline]
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
     }
 
     #[inline]
@@ -263,6 +266,9 @@ impl IStr {
         Ok(unsafe { Self::from_utf8_unchecked(bytes) })
     }
 
+    /// # Safety
+    ///
+    /// The bytes must represent valid utf-8
     #[inline]
     pub unsafe fn from_utf8_unchecked(bytes: IBytes) -> Self {
         Self(bytes)
@@ -289,6 +295,11 @@ impl IStr {
     }
 
     #[inline]
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
+    #[inline]
     pub fn saved_hash(self) -> u64 {
         self.0.saved_hash()
     }
@@ -308,12 +319,6 @@ impl From<IStr> for IBytes {
     #[inline]
     fn from(value: IStr) -> Self {
         value.0
-    }
-}
-
-impl Hash for IStr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.saved_hash().hash(state);
     }
 }
 
