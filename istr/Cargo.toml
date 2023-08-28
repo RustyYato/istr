@@ -5,6 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+cache-utf8 = ['simdutf8']
+
 [dependencies.hashbrown]
 version = '0.14'
 features = ['raw']
@@ -14,3 +17,7 @@ version = '0.8'
 
 [dependencies.nohash-hasher]
 version = '0.2'
+
+[dependencies.simdutf8]
+version = '0.1'
+optional = true

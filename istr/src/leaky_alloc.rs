@@ -167,6 +167,8 @@ fn alloc(size: usize) -> *mut u8 {
 pub(crate) struct InternedStringHeader {
     hash: u64,
     len: usize,
+    #[cfg(feature = "cache-utf8")]
+    is_valid_utf8: bool,
     data: [u8; 0],
 }
 
@@ -174,6 +176,8 @@ pub(crate) struct InternedStringHeader {
 pub(crate) struct InternedStringData<const N: usize> {
     hash: u64,
     len: usize,
+    #[cfg(feature = "cache-utf8")]
+    is_valid_utf8: bool,
     data: [u8; N],
 }
 
@@ -202,11 +206,11 @@ pub(crate) fn new(s: &str) -> IStr {
 
 #[cfg(test)]
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
-    let bytes = with_hash_bytes(s.as_bytes(), hash);
+    let bytes = with_hash_bytes(s.as_bytes(), hash, true);
     unsafe { IStr::from_utf8_unchecked(bytes) }
 }
 
-pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
+pub(crate) fn with_hash_bytes(s: &[u8], hash: u64, _guaranteed_valid_utf8: bool) -> IBytes {
     if s.is_empty() {
         return IBytes::empty();
     }
@@ -223,6 +227,8 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
         ptr.write(InternedStringHeader {
             hash,
             len: s.len(),
+            #[cfg(feature = "cache-utf8")]
+            is_valid_utf8: _guaranteed_valid_utf8 || simdutf8::basic::from_utf8(s).is_ok(),
             data: [],
         });
 
@@ -243,6 +249,8 @@ impl IBytes {
         static EMPTY_BYTES: InternedStringData<1> = InternedStringData {
             hash: crate::hasher::EMPTY_HASH,
             len: 0,
+            #[cfg(feature = "cache-utf8")]
+            is_valid_utf8: true,
             data: [0],
         };
 
@@ -293,6 +301,11 @@ impl IBytes {
     pub fn as_cstr(self) -> &'static CStr {
         unsafe { CStr::from_ptr(self.as_cstr_ptr()) }
     }
+
+    #[cfg(feature = "cache-utf8")]
+    pub fn is_valid_utf8(self) -> bool {
+        unsafe { (*self.header_ptr()).is_valid_utf8 }
+    }
 }
 
 impl Default for IBytes {
@@ -316,9 +329,37 @@ impl IStr {
     }
 
     #[inline]
+    #[cfg(not(feature = "cache-utf8"))]
     pub fn from_utf8(bytes: IBytes) -> Result<Self, Utf8Error> {
         core::str::from_utf8(bytes.to_bytes())?;
         Ok(unsafe { Self::from_utf8_unchecked(bytes) })
+    }
+
+    #[inline]
+    #[cfg(feature = "cache-utf8")]
+    pub fn from_utf8(bytes: IBytes) -> Result<Self, Utf8Error> {
+        if bytes.is_valid_utf8() {
+            Ok(unsafe { Self::from_utf8_unchecked(bytes) })
+        } else {
+            core::str::from_utf8(bytes.to_bytes())?;
+            unsafe { core::hint::unreachable_unchecked() }
+        }
+    }
+
+    #[inline]
+    #[cfg(not(feature = "cache-utf8"))]
+    pub fn try_from_utf8(bytes: IBytes) -> Option<Self> {
+        Self::from_utf8(bytes).ok()
+    }
+
+    #[inline]
+    #[cfg(feature = "cache-utf8")]
+    pub fn try_from_utf8(bytes: IBytes) -> Option<Self> {
+        if bytes.is_valid_utf8() {
+            Some(unsafe { Self::from_utf8_unchecked(bytes) })
+        } else {
+            None
+        }
     }
 
     /// # Safety

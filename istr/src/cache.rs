@@ -83,7 +83,7 @@ fn insert(table: &mut raw::RawTable<IBytes>, ibytes: IBytes, hash: u64) {
 #[cold]
 #[inline(never)]
 fn create(table: &mut raw::RawTable<IBytes>, s: &[u8], hash: u64) -> IBytes {
-    let ibytes = leaky_alloc::with_hash_bytes(s, hash);
+    let ibytes = leaky_alloc::with_hash_bytes(s, hash, false);
     insert(table, ibytes, hash);
     ibytes
 }
