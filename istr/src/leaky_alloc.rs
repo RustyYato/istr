@@ -194,7 +194,12 @@ pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
 }
 
 pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
-    let size = core::mem::size_of::<u64>() + core::mem::size_of::<usize>() + s.len() + 1;
+    const HEADER_PLUS_NUL_TERM: usize =
+        core::mem::size_of::<u64>() + core::mem::size_of::<usize>() + 1;
+    let size = HEADER_PLUS_NUL_TERM
+        .checked_add(s.len())
+        .expect("Overflow while calculating layout");
+
     let ptr = alloc(size).cast::<InternedStringHeader>();
 
     unsafe {
