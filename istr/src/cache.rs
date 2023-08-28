@@ -62,7 +62,7 @@ pub fn tables() -> impl Iterator<Item = MutexGuard<'static, raw::RawTable<IBytes
         .map(|table| table.table.lock().unwrap_or_else(PoisonError::into_inner))
 }
 
-pub fn size() -> usize {
+pub fn len() -> usize {
     tables().map(|table| table.len()).sum()
 }
 

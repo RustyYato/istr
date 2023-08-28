@@ -61,8 +61,14 @@ fn main() {
 
     dbg!(start.elapsed());
 
+    let total_size = istr::items().map(istr::IBytes::len).sum::<usize>();
+    let total_size_ustr = ustr::string_cache_iter().map(|x| x.len()).sum::<usize>();
+
+    dbg!(istr::len());
     dbg!(ustr::num_entries());
-    dbg!(istr::size());
+
+    dbg!(total_size);
+    dbg!(total_size_ustr);
 }
 
 fn run<const INCLUDE_NON_WORDS: bool, R>(mut s: &[u8], f: impl Fn(&[u8]) -> R) {
