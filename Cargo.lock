@@ -72,6 +72,13 @@ dependencies = [
  "ahash",
  "hashbrown",
  "nohash-hasher",
+]
+
+[[package]]
+name = "istr-test"
+version = "0.1.0"
+dependencies = [
+ "istr",
  "ustr",
 ]
 

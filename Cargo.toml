@@ -2,9 +2,7 @@
 
 resolver = '2'
 
-members = [
-    'istr',
-]
+members = ['istr', 'istr-test']
 
 [profile.release]
 debug = true
