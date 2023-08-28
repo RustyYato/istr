@@ -11,3 +11,10 @@ pub fn hash(value: &[u8]) -> u64 {
     hasher.write(value);
     hasher.finish()
 }
+
+pub const EMPTY_HASH: u64 = 180362161520211164;
+
+#[test]
+fn test() {
+    assert_eq!(hash(b""), EMPTY_HASH)
+}

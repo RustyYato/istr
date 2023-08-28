@@ -134,15 +134,21 @@ fn alloc(size: usize) -> *mut u8 {
     if remaining >= size {
         // already enough space
     } else if header.layout.size() >= size / 2 {
-        // create a new leaky alloc, since it is guarnateed to be larger than the string
+        // create a new leaky alloc, since it is guaranteed to be larger than the string
 
         ptr = LeakyAlloc::new();
 
         start = unsafe { core::ptr::addr_of!((*ptr).data).cast::<u8>() };
         header = unsafe { &mut *ptr };
     } else {
+        // for a very large allocation, just create a new allocation dedicated to the string
+
         return large_alloc(size);
     }
+
+    // if we have enough space in the current leaky alloc, cut off enough space for the string
+    // this operates as a bump allocator where the allocator grows down the address space
+    // https://fitzgeraldnick.com/2019/11/01/always-bump-downwards.html
 
     let current = unsafe { header.ptr.sub(size) };
     #[allow(clippy::transmutes_expressible_as_ptr_casts)]
@@ -163,6 +169,19 @@ pub(crate) struct InternedStringHeader {
     len: usize,
     data: [u8; 0],
 }
+
+#[repr(C)]
+pub(crate) struct InternedStringData<const N: usize> {
+    hash: u64,
+    len: usize,
+    data: [u8; N],
+}
+
+static EMPTY_BYTES: InternedStringData<1> = InternedStringData {
+    hash: crate::hasher::EMPTY_HASH,
+    len: 0,
+    data: [0],
+};
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -187,6 +206,18 @@ pub(crate) fn new(s: &str) -> IStr {
     with_hash(s, crate::hasher::hash(s.as_bytes()))
 }
 
+#[inline]
+fn empty_bytes() -> IBytes {
+    let x = core::ptr::addr_of!(EMPTY_BYTES.data[0]);
+
+    IBytes(unsafe { NonNull::new_unchecked(x.cast_mut()) })
+}
+
+#[inline]
+fn empty_str() -> IStr {
+    unsafe { IStr::from_utf8_unchecked(empty_bytes()) }
+}
+
 #[cfg(test)]
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
     let bytes = with_hash_bytes(s.as_bytes(), hash);
@@ -194,6 +225,10 @@ pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
 }
 
 pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
+    if s.is_empty() {
+        return empty_bytes();
+    }
+
     const HEADER_PLUS_NUL_TERM: usize =
         core::mem::size_of::<u64>() + core::mem::size_of::<usize>() + 1;
     let size = HEADER_PLUS_NUL_TERM
@@ -213,6 +248,7 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
 
         ptr.copy_from_nonoverlapping(s.as_ptr(), s.len());
 
+        // add a nul terminator, to ensure that every string is a valid cstr
         ptr.add(s.len()).write(0);
 
         IBytes(NonNull::new_unchecked(ptr))
@@ -220,6 +256,11 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
 }
 
 impl IBytes {
+    #[inline]
+    pub fn empty() -> Self {
+        empty_bytes()
+    }
+
     #[inline]
     fn header_ptr(self) -> *mut InternedStringHeader {
         let offset = unsafe {
@@ -264,7 +305,26 @@ impl IBytes {
     }
 }
 
+impl Default for IBytes {
+    #[inline]
+    fn default() -> Self {
+        empty_bytes()
+    }
+}
+
+impl Default for IStr {
+    #[inline]
+    fn default() -> Self {
+        empty_str()
+    }
+}
+
 impl IStr {
+    #[inline]
+    pub fn empty() -> Self {
+        empty_str()
+    }
+
     #[inline]
     pub fn from_utf8(bytes: IBytes) -> Result<Self, Utf8Error> {
         core::str::from_utf8(bytes.to_bytes())?;
