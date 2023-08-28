@@ -66,7 +66,12 @@ pub fn size() -> usize {
     tables().map(|table| table.len()).sum()
 }
 
-pub unsafe fn clear_global_cache() {
+// NOTE: This does not deallocate any existing string, however all new strings will
+// never be equal to any existing string so comparing them is useless. This should only
+// be used when running tests
+// NOTE: This will not clear the thread-local cache, so you may still get existing strings
+// if that cache is used.
+pub fn clear_global_cache() {
     tables().for_each(|mut table| table.clear())
 }
 
