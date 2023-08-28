@@ -6,12 +6,10 @@ fn main() {
     let start = std::time::Instant::now();
 
     std::thread::scope(|s| {
-        for i in 0..24 {
+        for _ in 0..1 {
             s.spawn(|| {
-                run::<true>(&text, |word| {
-                    istr::IBytes::new(word);
-                    // istr::IBytes::new_skip_local(word);
-                    // ustr::ustr(unsafe { core::str::from_utf8_unchecked(word) });
+                run::<true, _>(&text, |word| {
+                    ustr::ustr(unsafe { core::str::from_utf8_unchecked(word) })
                 });
             });
         }
@@ -19,9 +17,34 @@ fn main() {
 
     dbg!(start.elapsed());
 
-    let len = istr::items().map(istr::IBytes::len).sum::<usize>();
+    let start = std::time::Instant::now();
 
-    println!("{len}")
+    std::thread::scope(|s| {
+        for _ in 0..1 {
+            s.spawn(|| {
+                run::<true, _>(&text, istr::IBytes::new_skip_local);
+            });
+        }
+    });
+
+    dbg!(start.elapsed());
+
+    unsafe { istr::clear_global_cache() };
+
+    let start = std::time::Instant::now();
+
+    std::thread::scope(|s| {
+        for _ in 0..1 {
+            s.spawn(|| {
+                run::<true, _>(&text, istr::IBytes::new);
+            });
+        }
+    });
+
+    dbg!(start.elapsed());
+
+    dbg!(ustr::num_entries());
+    dbg!(istr::size());
 }
 
 // fn run_all<const INCLUDE_NON_WORDS: bool, const SKIP_LOCAL: bool>(s: &[u8]) {
@@ -42,7 +65,7 @@ fn main() {
 //     println!("{:?}", start.elapsed());
 // }
 
-fn run<const INCLUDE_NON_WORDS: bool>(mut s: &[u8], f: impl Fn(&[u8])) {
+fn run<const INCLUDE_NON_WORDS: bool, R>(mut s: &[u8], f: impl Fn(&[u8]) -> R) {
     loop {
         let Some(index) = s
             .iter()

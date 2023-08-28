@@ -66,6 +66,10 @@ pub fn size() -> usize {
     tables().map(|table| table.len()).sum()
 }
 
+pub unsafe fn clear_global_cache() {
+    tables().for_each(|mut table| table.clear())
+}
+
 fn insert(table: &mut raw::RawTable<IBytes>, ibytes: IBytes, hash: u64) {
     table.insert(hash, ibytes, |ibytes| ibytes.saved_hash());
 }
