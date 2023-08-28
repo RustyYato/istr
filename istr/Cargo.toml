@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.hashbrown]
-version = '0.13'
+version = '0.14'
 features = ['raw']
 
 [dependencies.ahash]
@@ -14,7 +14,3 @@ version = '0.8'
 
 [dependencies.nohash-hasher]
 version = '0.2'
-
-[dependencies.ustr]
-version = '0.9'
-optional = true
