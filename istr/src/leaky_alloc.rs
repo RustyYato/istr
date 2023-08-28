@@ -177,12 +177,6 @@ pub(crate) struct InternedStringData<const N: usize> {
     data: [u8; N],
 }
 
-static EMPTY_BYTES: InternedStringData<1> = InternedStringData {
-    hash: crate::hasher::EMPTY_HASH,
-    len: 0,
-    data: [0],
-};
-
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IBytes(NonNull<u8>);
@@ -206,18 +200,6 @@ pub(crate) fn new(s: &str) -> IStr {
     with_hash(s, crate::hasher::hash(s.as_bytes()))
 }
 
-#[inline]
-fn empty_bytes() -> IBytes {
-    let x = core::ptr::addr_of!(EMPTY_BYTES.data[0]);
-
-    IBytes(unsafe { NonNull::new_unchecked(x.cast_mut()) })
-}
-
-#[inline]
-fn empty_str() -> IStr {
-    unsafe { IStr::from_utf8_unchecked(empty_bytes()) }
-}
-
 #[cfg(test)]
 pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
     let bytes = with_hash_bytes(s.as_bytes(), hash);
@@ -226,7 +208,7 @@ pub(crate) fn with_hash(s: &str, hash: u64) -> IStr {
 
 pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
     if s.is_empty() {
-        return empty_bytes();
+        return IBytes::empty();
     }
 
     const HEADER_PLUS_NUL_TERM: usize =
@@ -258,7 +240,15 @@ pub(crate) fn with_hash_bytes(s: &[u8], hash: u64) -> IBytes {
 impl IBytes {
     #[inline]
     pub fn empty() -> Self {
-        empty_bytes()
+        static EMPTY_BYTES: InternedStringData<1> = InternedStringData {
+            hash: crate::hasher::EMPTY_HASH,
+            len: 0,
+            data: [0],
+        };
+
+        let x = core::ptr::addr_of!(EMPTY_BYTES.data[0]);
+
+        IBytes(unsafe { NonNull::new_unchecked(x.cast_mut()) })
     }
 
     #[inline]
@@ -308,21 +298,21 @@ impl IBytes {
 impl Default for IBytes {
     #[inline]
     fn default() -> Self {
-        empty_bytes()
+        Self::empty()
     }
 }
 
 impl Default for IStr {
     #[inline]
     fn default() -> Self {
-        empty_str()
+        Self::empty()
     }
 }
 
 impl IStr {
     #[inline]
     pub fn empty() -> Self {
-        empty_str()
+        unsafe { IStr::from_utf8_unchecked(IBytes::empty()) }
     }
 
     #[inline]
