@@ -46,7 +46,7 @@ fn main() {
 
     dbg!(start.elapsed());
 
-    unsafe { istr::clear_global_cache() };
+    istr::clear_global_cache();
 
     let start = std::time::Instant::now();
 
