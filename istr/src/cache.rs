@@ -66,6 +66,7 @@ pub fn size() -> usize {
     tables().map(|table| table.len()).sum()
 }
 
+#[cfg(ISTR_GLOBAL_CACHE_CLEAR)]
 // NOTE: This does not deallocate any existing string, however all new strings will
 // never be equal to any existing string so comparing them is useless. This should only
 // be used when running tests

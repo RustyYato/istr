@@ -17,7 +17,10 @@ mod leaky_alloc;
 
 mod cache;
 
-pub use cache::{clear_global_cache, clear_local_cache, local_cache_size, size};
+pub use cache::{clear_local_cache, local_cache_size, size};
+
+#[cfg(ISTR_GLOBAL_CACHE_CLEAR)]
+pub use cache::clear_global_cache;
 
 pub fn items() -> impl Iterator<Item = IBytes> {
     use hashbrown::raw;
