@@ -1,12 +1,29 @@
+use std::{num::NonZeroUsize, path::PathBuf};
+
+#[derive(clap::Parser)]
+pub struct Args {
+    path: PathBuf,
+    #[clap(long)]
+    threads: Option<NonZeroUsize>,
+}
+
 fn main() {
-    let path = std::env::args_os().nth(1).unwrap();
-    let text = std::fs::read(path).unwrap();
+    let args: Args = clap::Parser::parse();
+    let text = std::fs::read(args.path).unwrap();
     // let text = text.repeat(64);
 
     let start = std::time::Instant::now();
 
+    let threads = args
+        .threads
+        .or_else(|| std::thread::available_parallelism().ok())
+        .unwrap_or(NonZeroUsize::new(1).unwrap())
+        .get();
+
+    println!("Running test on {threads} threads");
+
     std::thread::scope(|s| {
-        for _ in 0..1 {
+        for _ in 0..threads {
             s.spawn(|| {
                 run::<true, _>(&text, |word| {
                     ustr::ustr(unsafe { core::str::from_utf8_unchecked(word) })
@@ -20,7 +37,7 @@ fn main() {
     let start = std::time::Instant::now();
 
     std::thread::scope(|s| {
-        for _ in 0..1 {
+        for _ in 0..threads {
             s.spawn(|| {
                 run::<true, _>(&text, istr::IBytes::new_skip_local);
             });
@@ -34,7 +51,7 @@ fn main() {
     let start = std::time::Instant::now();
 
     std::thread::scope(|s| {
-        for _ in 0..1 {
+        for _ in 0..threads {
             s.spawn(|| {
                 run::<true, _>(&text, istr::IBytes::new);
             });
@@ -47,29 +64,11 @@ fn main() {
     dbg!(istr::size());
 }
 
-// fn run_all<const INCLUDE_NON_WORDS: bool, const SKIP_LOCAL: bool>(s: &[u8]) {
-//     let start = std::time::Instant::now();
-//     run::<false>(s, |bytes| {
-//         if SKIP_LOCAL {
-//             istr::IBytes::new_skip_local(bytes);
-//         } else {
-//             istr::IBytes::new(bytes);
-//         }
-//     });
-//     println!("{:?}", start.elapsed());
-
-//     let start = std::time::Instant::now();
-//     run::<false>(s, |bytes| {
-//         ustr::ustr(unsafe { core::str::from_utf8_unchecked(bytes) });
-//     });
-//     println!("{:?}", start.elapsed());
-// }
-
 fn run<const INCLUDE_NON_WORDS: bool, R>(mut s: &[u8], f: impl Fn(&[u8]) -> R) {
     loop {
         let Some(index) = s
             .iter()
-            .position(|&x| !matches!(x, b'a'..=b'z' | b'A'..=b'Z')) else {
+            .position(|&x| !x.is_ascii_alphabetic()) else {
 
             f(s);
             break;
@@ -81,7 +80,7 @@ fn run<const INCLUDE_NON_WORDS: bool, R>(mut s: &[u8], f: impl Fn(&[u8]) -> R) {
 
         let Some(index) = next
             .iter()
-            .position(|&x| matches!(x, b'a'..=b'z' | b'A'..=b'Z')) else {
+            .position(|&x| x.is_ascii_alphabetic()) else {
             break;
         };
 

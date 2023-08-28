@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 istr = { path = '../istr' }
 ustr = '0.10'
+clap = { version = '4', features = ['derive'] }
