@@ -5,6 +5,8 @@ edition = "2021"
 
 description = "a fast string interning library based off of ustr"
 license = "MIT"
+categories = ["text-processing", "data-structures", "caching"]
+keywords = ["interning", "string", "FFI", "ustr"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
