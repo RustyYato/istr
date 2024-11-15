@@ -418,6 +418,27 @@ impl From<IStr> for IBytes {
     }
 }
 
+impl From<&[u8]> for IBytes {
+    #[inline]
+    fn from(value: &[u8]) -> Self {
+        IBytes::new(value)
+    }
+}
+
+impl From<&str> for IBytes {
+    #[inline]
+    fn from(value: &str) -> Self {
+        IBytes::new(value.as_bytes())
+    }
+}
+
+impl From<&str> for IStr {
+    #[inline]
+    fn from(value: &str) -> Self {
+        IStr::new(value)
+    }
+}
+
 impl Deref for IStr {
     type Target = str;
 
